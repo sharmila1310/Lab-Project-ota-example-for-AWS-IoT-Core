@@ -349,10 +349,74 @@ static void handleMqttStreamsBlockArrived( uint8_t * data,
     }
 }
 
+// static void finishDownload()
+// {
+//     /* TODO: Do something with the completed download */
+//     /* Start the bootloader */
+//     char thingName[ MAX_THING_NAME_SIZE + 1 ] = { 0 };
+//     size_t thingNameLength = 0U;
+//     char topicBuffer[ TOPIC_BUFFER_SIZE + 1 ] = { 0 };
+//     size_t topicBufferLength = 0U;
+//     char messageBuffer[ UPDATE_JOB_MSG_LENGTH ] = { 0 };
+
+//     mqttWrapper_getThingName( thingName, &thingNameLength );
+
+//     /*
+//      * AWS IoT Jobs library:
+//      * Creating the MQTT topic to update the status of OTA job.
+//      */
+//     Jobs_Update( topicBuffer,
+//                  TOPIC_BUFFER_SIZE,
+//                  thingName,
+//                  thingNameLength,
+//                  globalJobId,
+//                  strnlen( globalJobId, 1000U ),
+//                  &topicBufferLength );
+
+//     /*
+//      * AWS IoT Jobs library:
+//      * Creating the message which contains the status of OTA job.
+//      * It will be published on the topic created in the previous step.
+//      */
+//     size_t messageBufferLength = Jobs_UpdateMsg( Succeeded,
+//                                                  "2",
+//                                                  1U,
+//                                                  messageBuffer,
+//                                                  UPDATE_JOB_MSG_LENGTH );
+
+//     mqttWrapper_publish( topicBuffer,
+//                          topicBufferLength,
+//                          ( uint8_t * ) messageBuffer,
+//                          messageBufferLength );
+
+
+//     printf( "\033[1;32mOTA Completed successfully!\033[0m\n" );
+// }
+#include <stdio.h>
+#include <stdint.h>
+#include <assert.h>
+#include <string.h>
+
 static void finishDownload()
 {
-    /* TODO: Do something with the completed download */
-    /* Start the bootloader */
+    FILE *firmwareFile;
+    const char *firmwarePath = "/mnt/d/OTA-AWS-Architecture/WSL-new/dummy_firmware.bin";
+
+    // Open the file for writing
+    firmwareFile = fopen(firmwarePath, "wb");
+    if (firmwareFile != NULL)
+    {
+        // Write the downloaded firmware data to the file
+        fwrite(downloadedData, sizeof(uint8_t), totalBytesReceived, firmwareFile);
+        fclose(firmwareFile);
+        printf("Firmware successfully written to %s\n", firmwarePath);
+    }
+    else
+    {
+        printf("Failed to write firmware to %s\n", firmwarePath);
+    }
+
+    // Notify the IoT Core Job that the OTA update was successful
     char thingName[ MAX_THING_NAME_SIZE + 1 ] = { 0 };
     size_t thingNameLength = 0U;
     char topicBuffer[ TOPIC_BUFFER_SIZE + 1 ] = { 0 };
@@ -361,10 +425,7 @@ static void finishDownload()
 
     mqttWrapper_getThingName( thingName, &thingNameLength );
 
-    /*
-     * AWS IoT Jobs library:
-     * Creating the MQTT topic to update the status of OTA job.
-     */
+    // Create the MQTT topic to update the job status
     Jobs_Update( topicBuffer,
                  TOPIC_BUFFER_SIZE,
                  thingName,
@@ -373,22 +434,19 @@ static void finishDownload()
                  strnlen( globalJobId, 1000U ),
                  &topicBufferLength );
 
-    /*
-     * AWS IoT Jobs library:
-     * Creating the message which contains the status of OTA job.
-     * It will be published on the topic created in the previous step.
-     */
+    // Create the job success message
     size_t messageBufferLength = Jobs_UpdateMsg( Succeeded,
                                                  "2",
                                                  1U,
                                                  messageBuffer,
                                                  UPDATE_JOB_MSG_LENGTH );
 
+    // Publish the job success message to AWS IoT Core
     mqttWrapper_publish( topicBuffer,
                          topicBufferLength,
                          ( uint8_t * ) messageBuffer,
                          messageBufferLength );
 
-
-    printf( "\033[1;32mOTA Completed successfully!\033[0m\n" );
+    printf("\033[1;32mOTA Completed successfully!\033[0m\n");
 }
+
